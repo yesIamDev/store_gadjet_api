@@ -21,8 +21,14 @@ async function bootstrap() {
   );
 
   // Activation de CORS
+  // Normaliser l'URL du frontend (enlever le slash final si présent)
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001'
+  const normalizedFrontendUrl = frontendUrl.endsWith('/')
+    ? frontendUrl.slice(0, -1)
+    : frontendUrl
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: normalizedFrontendUrl,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

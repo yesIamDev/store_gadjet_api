@@ -28,10 +28,32 @@ export class AuthService {
 
       return new AuthResponseDto(accessToken, user);
     } catch (error) {
-      if (error instanceof ConflictException) {
+      // Si c'est déjà une exception HTTP, on la propage telle quelle
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException("Erreur lors de l'inscription");
+      // Pour les autres erreurs, on log avec plus de détails
+      console.error('Erreur lors de l\'inscription:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error,
+        registerDto: { username: registerDto.username, password: '***' },
+      });
+
+      // Si c'est une erreur de base de données, on renvoie un message plus spécifique
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        if (errorMessage.includes('database') || errorMessage.includes('connection') || errorMessage.includes('timeout')) {
+          throw new BadRequestException('Erreur de connexion à la base de données. Vérifiez la configuration.');
+        }
+        if (errorMessage.includes('table') || errorMessage.includes('relation')) {
+          throw new BadRequestException('Erreur de base de données. La table utilisateurs n\'existe peut-être pas.');
+        }
+      }
+
+      throw new BadRequestException(
+        error instanceof Error ? error.message : "Erreur lors de l'inscription"
+      );
     }
   }
 
