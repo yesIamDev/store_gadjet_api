@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +10,8 @@ import { Article } from './entities/article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticleResponseDto } from './dto/article-response.dto';
+import * as XLSX from 'xlsx';
+import type { Express } from 'express';
 
 @Injectable()
 export class ArticlesService {
@@ -105,5 +108,81 @@ export class ArticlesService {
     }
 
     await this.articleRepository.remove(article);
+  }
+
+  async importFromExcel(
+    file: any,
+  ): Promise<{ created: number; updated: number }> {
+    try {
+      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+      let created = 0;
+      let updated = 0;
+
+      for (const row of rows) {
+        const nom = (row.nom || row.NOM || '').toString().trim();
+        if (!nom) {
+          continue;
+        }
+
+        const description =
+          row.description || row.DESCRIPTION || null;
+        const prixDeVenteRaw =
+          row.prixDeVente || row.PRIX_DE_VENTE || row.prix || row.PRIX;
+        const prixDeVente = Number(prixDeVenteRaw);
+
+        if (!prixDeVente || Number.isNaN(prixDeVente) || prixDeVente <= 0) {
+          continue;
+        }
+
+        const quantiteMagasinRaw =
+          row.quantiteMagasin || row.QUANTITE_MAGASIN || row.magasin || row.MAGASIN;
+        const quantiteDepotRaw =
+          row.quantiteDepot || row.QUANTITE_DEPOT || row.depot || row.DEPOT;
+
+        const quantiteMagasin = Number(quantiteMagasinRaw) || 0;
+        const quantiteDepot = Number(quantiteDepotRaw) || 0;
+
+        const existing = await this.articleRepository.findOne({
+          where: { nom },
+        });
+
+        if (existing) {
+          existing.description = description ?? existing.description;
+          existing.prixDeVente = prixDeVente;
+          existing.quantiteMagasin = quantiteMagasin;
+          existing.quantiteDepot = quantiteDepot;
+          existing.quantiteEnStock = quantiteMagasin + quantiteDepot;
+          await this.articleRepository.save(existing);
+          updated++;
+        } else {
+          const article = this.articleRepository.create({
+            nom,
+            description,
+            prixDeVente,
+            quantiteMagasin,
+            quantiteDepot,
+            quantiteEnStock: quantiteMagasin + quantiteDepot,
+          });
+          await this.articleRepository.save(article);
+          created++;
+        }
+      }
+
+      if (created === 0 && updated === 0) {
+        throw new BadRequestException(
+          'Aucune ligne valide trouvée dans le fichier Excel',
+        );
+      }
+
+      return { created, updated };
+    } catch (error) {
+      throw new BadRequestException(
+        'Erreur lors du traitement du fichier Excel',
+      );
+    }
   }
 }

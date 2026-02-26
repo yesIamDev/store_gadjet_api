@@ -17,6 +17,9 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true, // Conversion implicite des types
       },
+      skipMissingProperties: false,
+      skipNullProperties: false,
+      skipUndefinedProperties: false,
     }),
   );
 
@@ -32,6 +35,7 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Type'],
   });
 
   // Mettre à jour les codes NULL pour les anciens mouvements

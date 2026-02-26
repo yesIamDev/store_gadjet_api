@@ -9,6 +9,7 @@ import { Client } from './entities/client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { ClientResponseDto } from './dto/client-response.dto';
+import { PaginatedResponse } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class ClientsService {
@@ -32,11 +33,24 @@ export class ClientsService {
     return new ClientResponseDto(savedClient);
   }
 
-  async findAll(): Promise<ClientResponseDto[]> {
-    const clients = await this.clientRepository.find({
+  async findAll(
+    page: number = 1,
+    limit: number = 15,
+  ): Promise<PaginatedResponse<ClientResponseDto>> {
+    const skip = (page - 1) * limit;
+    const [clients, total] = await this.clientRepository.findAndCount({
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
-    return clients.map((client) => new ClientResponseDto(client));
+
+    return {
+      data: clients.map((client) => new ClientResponseDto(client)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string): Promise<ClientResponseDto> {

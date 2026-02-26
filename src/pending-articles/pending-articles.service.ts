@@ -16,6 +16,8 @@ import { StockMovementItem } from '../stock-movements/entities/stock-movement-it
 import { LocationType } from '../stock-movements/entities/location-type.enum';
 import { StockMovementResponseDto } from '../stock-movements/dto/stock-movement-response.dto';
 import { ArticleResponseDto } from '../articles/dto/article-response.dto';
+import * as XLSX from 'xlsx';
+import type { Express } from 'express';
 import { plainToInstance } from 'class-transformer';
 
 @Injectable()
@@ -317,5 +319,97 @@ export class PendingArticlesService {
     }
 
     await this.pendingArticleRepository.remove(pendingArticle);
+  }
+
+  async importFromExcel(
+    file: any,
+  ): Promise<{ created: number; updated: number }> {
+    try {
+      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+      let created = 0;
+      let updated = 0;
+
+      for (const row of rows) {
+        const articleName = (row.article || row.ARTICLE || '').toString().trim();
+        const quantiteAttendueRaw =
+          row.quantiteAttendue || row.QUANTITE_ATTENDUE || row.quantite || row.QUANTITE;
+
+        if (!articleName || !quantiteAttendueRaw) {
+          continue;
+        }
+
+        const quantiteAttendue = Number(quantiteAttendueRaw);
+        if (!quantiteAttendue || Number.isNaN(quantiteAttendue) || quantiteAttendue <= 0) {
+          continue;
+        }
+
+        const dateAttendueRaw =
+          row.dateAttendue || row.DATE_ATTENDUE || row.date || row.DATE;
+        const note = row.note || row.NOTE || null;
+
+        const article = await this.articleRepository.findOne({
+          where: { nom: articleName },
+        });
+
+        if (!article) {
+          // On ignore les lignes dont l'article n'existe pas
+          continue;
+        }
+
+        // Chercher une file d'attente existante pour cet article encore en attente
+        let pendingArticle = await this.pendingArticleRepository.findOne({
+          where: {
+            articleId: article.id,
+            status: PendingArticleStatus.EN_ATTENTE,
+          },
+        });
+
+        if (pendingArticle) {
+          pendingArticle.quantiteAttendue += quantiteAttendue;
+          if (dateAttendueRaw) {
+            const parsed = new Date(dateAttendueRaw);
+            if (!Number.isNaN(parsed.getTime())) {
+              pendingArticle.dateAttendue = parsed;
+            }
+          }
+          if (note) {
+            pendingArticle.note = note;
+          }
+          pendingArticle.status = this.updateStatus(pendingArticle);
+          await this.pendingArticleRepository.save(pendingArticle);
+          updated++;
+        } else {
+          const newPending = this.pendingArticleRepository.create({
+            articleId: article.id,
+            quantiteAttendue,
+            quantiteRecue: 0,
+            dateAttendue:
+              dateAttendueRaw && dateAttendueRaw.toString().trim() !== ''
+                ? new Date(dateAttendueRaw)
+                : null,
+            note: note || null,
+            status: PendingArticleStatus.EN_ATTENTE,
+          });
+          await this.pendingArticleRepository.save(newPending);
+          created++;
+        }
+      }
+
+      if (created === 0 && updated === 0) {
+        throw new BadRequestException(
+          'Aucune ligne valide trouvée dans le fichier Excel',
+        );
+      }
+
+      return { created, updated };
+    } catch (error) {
+      throw new BadRequestException(
+        'Erreur lors du traitement du fichier Excel',
+      );
+    }
   }
 }
