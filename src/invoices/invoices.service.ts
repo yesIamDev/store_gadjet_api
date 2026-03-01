@@ -34,12 +34,14 @@ export class InvoicesService {
   ) {}
 
   async create(createInvoiceDto: CreateInvoiceDto): Promise<InvoiceResponseDto> {
-    // 1. Vérifier l'unicité du numéro de facture
-    const existingInvoice = await this.invoiceRepository.findOne({
-      where: { numeroFacture: createInvoiceDto.numeroFacture },
-    });
-    if (existingInvoice) {
-      throw new ConflictException('Une facture avec ce numéro existe déjà');
+    // 1. Vérifier l'unicité du numéro de facture si fourni
+    if (createInvoiceDto.numeroFacture?.trim()) {
+      const existingInvoice = await this.invoiceRepository.findOne({
+        where: { numeroFacture: createInvoiceDto.numeroFacture.trim() },
+      });
+      if (existingInvoice) {
+        throw new ConflictException('Une facture avec ce numéro existe déjà');
+      }
     }
 
     // 2. Vérifier le client si fourni
@@ -99,9 +101,15 @@ export class InvoicesService {
     
     if (createInvoiceDto.items && createInvoiceDto.items.length > 0) {
       invoiceItems = createInvoiceDto.items.map((itemDto) => {
-        const prixUnitaire = Number(itemDto.prixUnitaire) || 0;
+        const prixUnitaire = itemDto.prixUnitaire !== undefined && itemDto.prixUnitaire !== null
+          ? Number(itemDto.prixUnitaire)
+          : null;
         const quantite = Number(itemDto.quantite) || 0;
-        montantFromItems += prixUnitaire * quantite;
+        
+        // Calculer le montant seulement si le prix est fourni
+        if (prixUnitaire !== null && prixUnitaire > 0) {
+          montantFromItems += prixUnitaire * quantite;
+        }
         
         return this.invoiceItemRepository.create({
           nom: itemDto.nom.trim(),
@@ -120,19 +128,26 @@ export class InvoicesService {
     }
 
     // 6. Calculer le montant total
-    const montantTotal = createInvoiceDto.montantTotal && createInvoiceDto.montantTotal > 0
-      ? createInvoiceDto.montantTotal
-      : montantFromMovement + montantFromItems;
+    // Si un montant total manuel est fourni, l'utiliser
+    // Sinon, calculer à partir des mouvements et items avec prix
+    let montantTotal = 0;
+    if (createInvoiceDto.montantTotal && createInvoiceDto.montantTotal > 0) {
+      montantTotal = createInvoiceDto.montantTotal;
+    } else {
+      montantTotal = montantFromMovement + montantFromItems;
+    }
 
-    if (montantTotal <= 0) {
-      throw new BadRequestException('Le montant total de la facture doit être supérieur à 0');
+    // Si le montant calculé est 0 et qu'aucun montant manuel n'est fourni,
+    // permettre quand même la création (pour les factures avec articles sans prix)
+    if (montantTotal < 0) {
+      throw new BadRequestException('Le montant total de la facture ne peut pas être négatif');
     }
 
     // 7. Créer la facture
     const invoice = this.invoiceRepository.create({
-      numeroFacture: createInvoiceDto.numeroFacture,
+      numeroFacture: createInvoiceDto.numeroFacture?.trim() || null,
       numeroBonLivraison: createInvoiceDto.numeroBonLivraison?.trim() || null,
-      montantTotal,
+      montantTotal: montantTotal || 0, // Permettre 0 si tous les articles n'ont pas de prix
       status: createInvoiceDto.status || InvoiceStatus.NON_PAYE,
       stockMovementId: stockMovement?.id || null,
       clientId,
@@ -284,15 +299,18 @@ export class InvoicesService {
 
       // Créer les nouveaux articles libres
       if (updateInvoiceDto.items && updateInvoiceDto.items.length > 0) {
-        invoice.items = updateInvoiceDto.items.map((itemDto) =>
-          this.invoiceItemRepository.create({
+        invoice.items = updateInvoiceDto.items.map((itemDto) => {
+          const prixUnitaire = itemDto.prixUnitaire !== undefined && itemDto.prixUnitaire !== null
+            ? Number(itemDto.prixUnitaire)
+            : null;
+          return this.invoiceItemRepository.create({
             nom: itemDto.nom.trim(),
             description: itemDto.description?.trim() || null,
-            prixUnitaire: Number(itemDto.prixUnitaire),
+            prixUnitaire,
             quantite: Number(itemDto.quantite),
             invoiceId: invoice.id,
-          })
-        );
+          });
+        });
       } else {
         invoice.items = [];
       }
@@ -317,25 +335,33 @@ export class InvoicesService {
       }
     }
 
-    // Montant des articles libres
+    // Montant des articles libres (seulement ceux avec prix)
     if (invoice.items && invoice.items.length > 0) {
       for (const item of invoice.items) {
-        const prixUnitaire = typeof item.prixUnitaire === 'string'
-          ? parseFloat(item.prixUnitaire)
-          : item.prixUnitaire;
-        montantTotal += prixUnitaire * item.quantite;
+        const prixUnitaire = item.prixUnitaire !== null && item.prixUnitaire !== undefined
+          ? (typeof item.prixUnitaire === 'string'
+            ? parseFloat(item.prixUnitaire)
+            : Number(item.prixUnitaire))
+          : null;
+        if (prixUnitaire !== null && prixUnitaire > 0) {
+          montantTotal += prixUnitaire * item.quantite;
+        }
       }
     }
 
     // Utiliser le montant fourni s'il est présent, sinon utiliser le montant calculé
-    if (updateInvoiceDto.montantTotal && updateInvoiceDto.montantTotal > 0) {
+    if (updateInvoiceDto.montantTotal !== undefined && updateInvoiceDto.montantTotal !== null) {
+      if (updateInvoiceDto.montantTotal < 0) {
+        throw new BadRequestException('Le montant total ne peut pas être négatif');
+      }
       invoice.montantTotal = updateInvoiceDto.montantTotal;
     } else if (montantTotal > 0) {
       invoice.montantTotal = montantTotal;
     }
+    // Si montantTotal est 0 et qu'aucun montant manuel n'est fourni, garder le montant actuel
 
-    if (invoice.montantTotal <= 0) {
-      throw new BadRequestException('Le montant total de la facture doit être supérieur à 0');
+    if (invoice.montantTotal < 0) {
+      throw new BadRequestException('Le montant total ne peut pas être négatif');
     }
 
     // Mettre à jour le statut si fourni

@@ -23,8 +23,8 @@ export class Invoice {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 100, unique: true, name: 'numero_facture' })
-  numeroFacture: string;
+  @Column({ length: 100, unique: false, nullable: true, name: 'numero_facture' })
+  numeroFacture: string | null;
 
   @Column({ length: 100, nullable: true, name: 'numero_bon_livraison' })
   numeroBonLivraison: string | null;

@@ -24,9 +24,10 @@ export class InvoiceItem {
     type: 'decimal',
     precision: 10,
     scale: 2,
+    nullable: true,
     name: 'prix_unitaire',
   })
-  prixUnitaire: number;
+  prixUnitaire: number | null;
 
   @Column({ type: 'int', name: 'quantite' })
   quantite: number;

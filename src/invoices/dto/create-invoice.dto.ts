@@ -18,12 +18,11 @@ import { InvoiceItemDto } from './invoice-item.dto';
 
 export class CreateInvoiceDto {
   @IsString()
-  @IsNotEmpty({ message: 'Le numéro de facture est requis' })
-  @MinLength(1, { message: 'Le numéro de facture est requis' })
+  @IsOptional()
   @MaxLength(100, {
     message: 'Le numéro de facture ne peut pas dépasser 100 caractères',
   })
-  numeroFacture: string;
+  numeroFacture?: string;
 
   @IsString()
   @IsOptional()

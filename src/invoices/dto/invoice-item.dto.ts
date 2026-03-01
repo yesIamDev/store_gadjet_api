@@ -22,9 +22,10 @@ export class InvoiceItemDto {
 
   @IsNumber()
   @Type(() => Number)
+  @IsOptional()
   @IsPositive({ message: 'Le prix unitaire doit être positif' })
   @Min(0.01, { message: 'Le prix unitaire doit être supérieur à 0' })
-  prixUnitaire: number;
+  prixUnitaire?: number;
 
   @IsNumber()
   @Type(() => Number)
