@@ -1,6 +1,7 @@
 import { Expose, Type } from 'class-transformer';
-import { MovementType } from '../entities/stock-movement.entity';
+import { MovementType, LoanStatus } from '../entities/stock-movement.entity';
 import { StockMovementItemResponseDto } from './stock-movement-item-response.dto';
+import { ClientResponseDto } from '../../clients/dto/client-response.dto';
 
 export class StockMovementResponseDto {
   @Expose()
@@ -18,6 +19,16 @@ export class StockMovementResponseDto {
 
   @Expose()
   motif: string | null;
+
+  @Expose()
+  clientId: string | null;
+
+  @Expose()
+  @Type(() => ClientResponseDto)
+  client: ClientResponseDto | null;
+
+  @Expose()
+  loanStatus: LoanStatus | null;
 
   @Expose()
   createdAt: Date;

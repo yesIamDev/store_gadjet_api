@@ -1,4 +1,5 @@
 import { Expose } from 'class-transformer';
+import { ArticleColor } from '../entities/article.entity';
 
 export class ArticleResponseDto {
   @Expose()
@@ -8,7 +9,10 @@ export class ArticleResponseDto {
   nom: string;
 
   @Expose()
-  description: string | null;
+  marque: string;
+
+  @Expose()
+  couleur: ArticleColor;
 
   @Expose()
   quantiteEnStock: number;
@@ -20,7 +24,7 @@ export class ArticleResponseDto {
   quantiteDepot: number;
 
   @Expose()
-  prixDeVente: number;
+  prixDeVente: number | null;
 
   @Expose()
   createdAt: Date;

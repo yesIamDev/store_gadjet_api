@@ -15,6 +15,7 @@ import {
 import { StockMovementsService } from './stock-movements.service';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { UpdateStockMovementDto } from './dto/update-stock-movement.dto';
+import { ReturnLoanDto } from './dto/return-loan.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('stock-movements')
@@ -55,5 +56,13 @@ export class StockMovementsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.stockMovementsService.remove(id);
+  }
+
+  @Patch(':id/return-loan')
+  returnLoan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() returnLoanDto: ReturnLoanDto,
+  ) {
+    return this.stockMovementsService.returnLoanItems(id, returnLoanDto);
   }
 }

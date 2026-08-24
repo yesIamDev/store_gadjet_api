@@ -13,7 +13,12 @@ export default registerAs('database', (): TypeOrmModuleOptions => {
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_DATABASE || 'store_gadget_db',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-    synchronize: process.env.DB_SYNCHRONIZE !== 'false',
+    migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+    // Le schéma est désormais géré par les migrations (voir src/migrations).
+    // synchronize reste désactivable/activable explicitement pour du dépannage ponctuel,
+    // mais ne doit jamais être activé en production.
+    synchronize: process.env.DB_SYNCHRONIZE === 'true',
+    migrationsRun: process.env.DB_MIGRATIONS_RUN !== 'false',
     logging: process.env.DB_LOGGING === 'true',
     // Render et la plupart des services cloud nécessitent SSL
     ssl: isRenderDB || isProduction

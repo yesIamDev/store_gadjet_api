@@ -9,6 +9,7 @@ import {
 export enum ClientType {
   INDIVIDU = 'INDIVIDU',
   ENTREPRISE = 'ENTREPRISE',
+  REVENDEUR = 'REVENDEUR',
 }
 
 @Entity('clients')

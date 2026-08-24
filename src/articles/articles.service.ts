@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Article } from './entities/article.entity';
+import { Article, ArticleColor } from './entities/article.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticleResponseDto } from './dto/article-response.dto';
@@ -128,14 +128,31 @@ export class ArticlesService {
           continue;
         }
 
-        const description =
-          row.description || row.DESCRIPTION || null;
+        const marque = (row.marque || row.MARQUE || row.brand || row.BRAND || '')
+          .toString()
+          .trim();
+        if (!marque) {
+          continue;
+        }
+
+        const couleurRaw = (row.couleur || row.COULEUR || '')
+          .toString()
+          .trim()
+          .toUpperCase();
+        if (!Object.values(ArticleColor).includes(couleurRaw as ArticleColor)) {
+          continue;
+        }
+        const couleur = couleurRaw as ArticleColor;
+
         const prixDeVenteRaw =
           row.prixDeVente || row.PRIX_DE_VENTE || row.prix || row.PRIX;
-        const prixDeVente = Number(prixDeVenteRaw);
-
-        if (!prixDeVente || Number.isNaN(prixDeVente) || prixDeVente <= 0) {
-          continue;
+        let prixDeVente: number | null = null;
+        if (prixDeVenteRaw !== null && prixDeVenteRaw !== undefined && prixDeVenteRaw !== '') {
+          const parsedPrix = Number(prixDeVenteRaw);
+          if (Number.isNaN(parsedPrix) || parsedPrix <= 0) {
+            continue;
+          }
+          prixDeVente = parsedPrix;
         }
 
         const quantiteMagasinRaw =
@@ -151,7 +168,8 @@ export class ArticlesService {
         });
 
         if (existing) {
-          existing.description = description ?? existing.description;
+          existing.marque = marque;
+          existing.couleur = couleur;
           existing.prixDeVente = prixDeVente;
           existing.quantiteMagasin = quantiteMagasin;
           existing.quantiteDepot = quantiteDepot;
@@ -161,7 +179,8 @@ export class ArticlesService {
         } else {
           const article = this.articleRepository.create({
             nom,
-            description,
+            marque,
+            couleur,
             prixDeVente,
             quantiteMagasin,
             quantiteDepot,

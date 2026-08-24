@@ -92,10 +92,9 @@ export class AuthService {
       username: user.username,
     };
 
-    const expiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '24h';
     return this.jwtService.signAsync(payload, {
-      secret: this.configService.get<string>('JWT_SECRET') || 'your-secret-key',
-      expiresIn: expiresIn as any,
+      secret: this.configService.get<string>('jwt.secret'),
+      expiresIn: this.configService.get<string>('jwt.expiresIn') as any,
     });
   }
 }

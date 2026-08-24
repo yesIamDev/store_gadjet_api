@@ -40,4 +40,8 @@ export class StockMovementItem {
     name: 'emplacement',
   })
   emplacement: LocationType;
+
+  // Quantité déjà retournée en stock, uniquement pertinent pour un item d'un mouvement PRET_REVENDEUR
+  @Column({ type: 'int', default: 0, name: 'quantite_retournee' })
+  quantiteRetournee: number;
 }

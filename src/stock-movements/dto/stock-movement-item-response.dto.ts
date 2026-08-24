@@ -16,6 +16,9 @@ export class StockMovementItemResponseDto {
   @Expose()
   emplacement: LocationType;
 
+  @Expose()
+  quantiteRetournee: number;
+
   @Exclude()
   movementId: string;
 

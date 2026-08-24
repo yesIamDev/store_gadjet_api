@@ -15,7 +15,6 @@ export class AppService {
         clients: '/clients',
         invoices: '/invoices',
         stockMovements: '/stock-movements',
-        pendingArticles: '/pending-articles',
       },
     };
   }

@@ -10,7 +10,6 @@ import { ArticlesModule } from './articles/articles.module';
 import { StockMovementsModule } from './stock-movements/stock-movements.module';
 import { ClientsModule } from './clients/clients.module';
 import { InvoicesModule } from './invoices/invoices.module';
-import { PendingArticlesModule } from './pending-articles/pending-articles.module';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -38,7 +37,6 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     StockMovementsModule,
     ClientsModule,
     InvoicesModule,
-    PendingArticlesModule,
   ],
   controllers: [AppController],
   providers: [
